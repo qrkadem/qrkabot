@@ -5,42 +5,47 @@ import os
 import re
 import string
 from nltk.tokenize import word_tokenize
+from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import stopwords
 import random
 import requests
 import sys
 
-# URL of the text file
+detokenizer = TreebankWordDetokenizer()
+
+# url of the text file
 url = "http://www.gutenberg.org/files/1342/1342-0.txt"
 
-# Path to the downloaded file
+# path to the downloaded file
 novel_path = "pride_and_prejudice.txt"
 
-# Get text source
+# get text source
 if not sys.stdin.isatty():
-    # Read from stdin (piped input)
+    # read from stdin (piped input)
     text = sys.stdin.read()
 else:
-    # Download the file if it doesn't exist
+    # download the file if it doesn't exist
     if not os.path.exists(novel_path):
         response = requests.get(url)
         if response.status_code == 200:
-            # Save the content to a local file
+            # save the content to a local file
             with open(novel_path, "w", encoding="utf-8") as f:
                 f.write(response.text)
         else:
             print("Failed to download the file.")
             sys.exit(1)
-    # Read from file
+    # read from file
     with open(novel_path, 'r', encoding='utf-8') as f:
         text = f.read()
 
 def clean_and_tokenize_text(text):
-    # Tokenize the text into words and punctuation
+    # remove underscores used for italics
+    text = re.sub(r'_', '', text)
+    # tokenize the text into words and punctuation
     tokens = word_tokenize(text)
     return tokens
 
-# Clean and tokenize text
+# clean and tokenize text
 cleaned_text = clean_and_tokenize_text(text)
 print("Number of tokens =", len(cleaned_text))
 
@@ -56,8 +61,8 @@ def make_markov_model(cleaned_text, n_gram=3):
             if next_index < len(cleaned_text):
                 next_state += cleaned_text[next_index] + " "
 
-        curr_state = curr_state.strip()
-        next_state = next_state.strip()
+        curr_state = tuple(cleaned_text[i:i+n_gram])
+        next_state = tuple(cleaned_text[i+n_gram:i+2*n_gram])
 
         if curr_state not in markov_model:
             markov_model[curr_state] = {}
@@ -79,38 +84,37 @@ def make_markov_model(cleaned_text, n_gram=3):
 pp_markov_model = make_markov_model(cleaned_text)
 print("number of states = ", len(pp_markov_model.keys()))
 
+start = input("Input starting words to generate story (or press Enter to randomize): ")
+
 def generate_story(pp_markov_model, limit=100, start=None):
     if start is None or start not in pp_markov_model:
         start = random.choice(list(pp_markov_model.keys()))
     n = 0
     curr_state = start
     next_state = None
-    story_tokens = curr_state.split()  # Start with the initial state tokens
+    story_tokens = list(curr_state)    
     while n < limit:
         try:
             if not pp_markov_model[curr_state]:
-                # If no transitions, pick a new random state
+                # if no transitions, pick a new random state
                 curr_state = random.choice(list(pp_markov_model.keys()))
                 continue
         except KeyError:
-            # If state not in model, pick a new one
+            # if state not in model, pick a new one
             curr_state = random.choice(list(pp_markov_model.keys()))
             continue
         next_state = random.choices(list(pp_markov_model[curr_state].keys()),
                                     list(pp_markov_model[curr_state].values()))
 
         curr_state = next_state[0]
-        story_tokens.extend(curr_state.split())
+        story_tokens.extend(curr_state)
         n += 1
     
-    # Join tokens with spaces, then fix punctuation spacing
-    story = ' '.join(story_tokens)
-    story = re.sub(r'\s+([,.!?;:])', r'\1', story)  # Remove space before punctuation
-    story = re.sub(r'([,.!?;:])\s+', r'\1 ', story)  # Ensure space after punctuation if needed, but actually for commas etc., keep as is
-    # Actually, simpler: just remove spaces before punctuation
+    story = detokenizer.detokenize(story_tokens)
+    story = re.sub(r"\s+([.,!?;:])", r"\1", story)
     return story
 
 
-# Generate a story
-generated_story = generate_story(pp_markov_model, limit=100)
+# generate a story
+generated_story = generate_story(pp_markov_model, limit=100, start=start if start else None)
 print("Generated Story: \n", generated_story)
