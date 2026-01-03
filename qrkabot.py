@@ -41,6 +41,8 @@ else:
 def clean_and_tokenize_text(text):
     # remove underscores used for italics
     text = re.sub(r'_', '', text)
+
+    text = text.replace("’", "'").replace("“", '"').replace("”", '"')
     # tokenize the text into words and punctuation
     tokens = word_tokenize(text)
     return tokens
@@ -84,7 +86,11 @@ def make_markov_model(cleaned_text, n_gram=2):
 pp_markov_model = make_markov_model(cleaned_text)
 print("number of states = ", len(pp_markov_model.keys()))
 
-start = input("Input starting words to generate story (or press Enter to randomize): ")
+if sys.stdin.isatty():
+    start_input = input("Input starting words to generate story (or press Enter to randomize): ")
+    start = tuple(start_input.split()) if start_input.strip() else None
+else:
+    start = None
 
 def generate_story(pp_markov_model, limit=100, start=None):
     if start is None or start not in pp_markov_model:
@@ -112,6 +118,8 @@ def generate_story(pp_markov_model, limit=100, start=None):
     
     story = detokenizer.detokenize(story_tokens)
     story = re.sub(r"\s+([.,!?;:])", r"\1", story)
+    story = re.sub(r'\s+([\'"])', r'\1', story)
+    story = re.sub(r'([\'"])\s+', r'\1', story)
     return story
 
 
