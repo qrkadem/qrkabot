@@ -14,10 +14,10 @@ import sys
 detokenizer = TreebankWordDetokenizer()
 
 # url of the text file
-url = "http://www.gutenberg.org/files/1342/1342-0.txt"
+url = "https://www.gutenberg.org/cache/epub/55/pg55.txt"
 
 # path to the downloaded file
-novel_path = "pride_and_prejudice.txt"
+novel_path = "oz.txt"
 
 # get text source
 if not sys.stdin.isatty():
@@ -49,7 +49,7 @@ def clean_and_tokenize_text(text):
 cleaned_text = clean_and_tokenize_text(text)
 print("Number of tokens =", len(cleaned_text))
 
-def make_markov_model(cleaned_text, n_gram=3):
+def make_markov_model(cleaned_text, n_gram=2):
     markov_model = {}
     for i in range(len(cleaned_text) - n_gram):
         curr_state, next_state = "", ""
