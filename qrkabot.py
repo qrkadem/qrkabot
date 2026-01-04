@@ -10,14 +10,21 @@ from nltk.corpus import stopwords
 import random
 import requests
 import sys
+import argparse
 
 detokenizer = TreebankWordDetokenizer()
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Generate stories using Markov chains.')
+parser.add_argument('-n', '--ngram', type=int, default=2, help='n-gram size (default: 2)')
+parser.add_argument('-s', '--start', type=str, help='Starting words for the story (optional)')
+args = parser.parse_args()
 
 # url of the text file
 url = "https://www.gutenberg.org/cache/epub/55/pg55.txt"
 
 # path to the downloaded file
-novel_path = "oz.txt"
+novel_path = "./corpora/oz.txt"
 
 # get text source
 if not sys.stdin.isatty():
@@ -51,7 +58,7 @@ def clean_and_tokenize_text(text):
 cleaned_text = clean_and_tokenize_text(text)
 print("Number of tokens =", len(cleaned_text))
 
-def make_markov_model(cleaned_text, n_gram=(input("Enter n-gram size (default 2): ") or 2)):
+def make_markov_model(cleaned_text, n_gram=2):
     markov_model = {}
     for i in range(len(cleaned_text) - n_gram):
         curr_state, next_state = "", ""
@@ -83,14 +90,8 @@ def make_markov_model(cleaned_text, n_gram=(input("Enter n-gram size (default 2)
 
     return markov_model
 
-pp_markov_model = make_markov_model(cleaned_text)
+pp_markov_model = make_markov_model(cleaned_text, n_gram=args.ngram)
 print("number of states = ", len(pp_markov_model.keys()))
-
-if sys.stdin.isatty():
-    start_input = input("Input starting words to generate story (or press Enter to randomize): ")
-    start = tuple(start_input.split()) if start_input.strip() else None
-else:
-    start = None
 
 def generate_story(pp_markov_model, limit=100, start=None):
     if start is None or start not in pp_markov_model:
@@ -98,7 +99,7 @@ def generate_story(pp_markov_model, limit=100, start=None):
     n = 0
     curr_state = start
     next_state = None
-    story_tokens = list(curr_state)    
+    story_tokens = list(curr_state)
     while n < limit:
         try:
             if not pp_markov_model[curr_state]:
@@ -122,7 +123,20 @@ def generate_story(pp_markov_model, limit=100, start=None):
     story = re.sub(r'([\'"])\s+', r'\1', story)
     return story
 
+def generate_response(prompt, limit=random.randint(8, 18)):
+    start_words = tuple(word_tokenize(prompt))
+    return generate_story(pp_markov_model, limit=limit, start=start_words)
 
-# generate a story
-generated_story = generate_story(pp_markov_model, limit=100, start=start if start else None)
-print("Generated Story: \n", generated_story)
+
+if __name__ == "__main__":
+    if args.start:
+        start = tuple(args.start.split()) if args.start.strip() else None
+    else:
+        if sys.stdin.isatty():
+            start_input = input("Input starting words to generate story (or press Enter to randomize): ")
+            start = tuple(start_input.split()) if start_input.strip() else None
+        else:
+            start = None
+
+    generated_story = generate_story(pp_markov_model, limit=100, start=start if start else None)
+    print("Generated Story: \n", generated_story)
