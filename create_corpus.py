@@ -21,7 +21,7 @@ def create_corpus(input_files, output_file='corpus.txt'):
     print(f"Total characters: {len(corpus_text)}")
 
 if __name__ == "__main__":
-    default = ['text.txt']
+    default = ['./corpora/oz.txt', './corpora/pride_and_prejudice.txt']
     
     if len(sys.argv) > 1:
         input_files = sys.argv[1:]
