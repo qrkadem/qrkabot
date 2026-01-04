@@ -49,7 +49,7 @@ class qrkabotFactory(protocol.ClientFactory):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python irc_bot.py <channel>")
+        print("Usage: python qrkaclient.py <channel>")
         sys.exit(1)
 
     server = "irc.colosolutions.net"
