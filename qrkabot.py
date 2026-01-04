@@ -14,11 +14,7 @@ import argparse
 
 detokenizer = TreebankWordDetokenizer()
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Generate stories using Markov chains.')
-parser.add_argument('-n', '--ngram', type=int, default=2, help='n-gram size (default: 2)')
-parser.add_argument('-s', '--start', type=str, help='Starting words for the story (optional)')
-args = parser.parse_args()
+
 
 # url of the text file
 url = "https://www.gutenberg.org/cache/epub/55/pg55.txt"
@@ -90,7 +86,7 @@ def make_markov_model(cleaned_text, n_gram=2):
 
     return markov_model
 
-pp_markov_model = make_markov_model(cleaned_text, n_gram=args.ngram)
+pp_markov_model = make_markov_model(cleaned_text, n_gram=2) #args.ngram)
 print("number of states = ", len(pp_markov_model.keys()))
 
 def generate_story(pp_markov_model, limit=100, start=None):
@@ -129,6 +125,12 @@ def generate_response(prompt, limit=random.randint(8, 18)):
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Generate stories using Markov chains.')
+    parser.add_argument('-n', '--ngram', type=int, default=2, help='n-gram size (default: 2)')
+    parser.add_argument('-s', '--start', type=str, help='Starting words for the story (optional)')
+    args = parser.parse_args()
+
     if args.start:
         start = tuple(args.start.split()) if args.start.strip() else None
     else:
