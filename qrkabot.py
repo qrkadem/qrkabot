@@ -100,4 +100,11 @@ def generate(pp_markov_model, limit=100, start=None):
     return story
 
 def generate_response(prompt=None, limit=random.randint(8, 18)):
+    
+    prompt_lower = prompt.lower().strip()
+    if prompt_lower == "who are you":
+        return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
+    elif prompt_lower == "help":
+        return "I'm actually stupid, so I can't help you."
+    
     return generate(pp_markov_model, limit=limit, start=prompt)
