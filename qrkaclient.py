@@ -20,30 +20,31 @@ class qrkabot(irc.IRCClient):
 
     def privmsg(self, user, channel, msg):
         user = user.split('!')[0]
+
         if channel == self.nickname:
-            # PM, ignore for now
-            pass
-        else:
-            # mention check
-            if self.nickname.lower() in msg.lower():
-                # remove user mention like <bro>
-                cleaned = re.sub(r"<[^>]+>\s*", "", msg, count=1)
+            return  # ignore PMs for now
 
-                cleaned = re.sub(
-                    re.escape(self.nickname),
-                    "",
-                    cleaned,
-                    count=1,
-                    flags=re.IGNORECASE
-                ).strip()
-                prompt = cleaned
+        if self.nickname.lower() not in msg.lower():
+            return
+        cleaned = re.sub(r"<[^>]+>\s*", "", msg, count=1)
 
-            try:
-                response = generate_response(prompt)
-                self.msg(channel, response)
-            except Exception as e:
-                print(f"Error generating response: {e}")
-                self.msg(channel, "Sorry, I couldn't generate a response.")
+        # remove first occurrence of bot nickname
+        cleaned = re.sub(
+            re.escape(self.nickname),
+            "",
+            cleaned,
+            count=1,
+            flags=re.IGNORECASE
+        ).strip()
+
+        prompt = cleaned
+
+        try:
+            response = generate_response(prompt)
+            self.msg(channel, response)
+        except Exception as e:
+            print(f"Error generating response: {e}")
+            self.msg(channel, "Sorry, I couldn't generate a response.")
 
 class qrkabotFactory(protocol.ClientFactory):
     protocol = qrkabot
