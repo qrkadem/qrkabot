@@ -36,7 +36,7 @@ class qrkabot(irc.IRCClient):
                     count=1,
                     flags=re.IGNORECASE
                 ).strip()
-            prompt = cleaned
+                prompt = cleaned
 
             try:
                 response = generate_response(prompt)
