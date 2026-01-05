@@ -16,30 +16,16 @@ detokenizer = TreebankWordDetokenizer()
 
 
 
-# url of the text file
-url = "https://www.gutenberg.org/cache/epub/55/pg55.txt"
+corpus_path = "./corpora/corpus.txt"
 
-# path to the downloaded file
-novel_path = "./corpora/oz.txt"
+if not os.path.exists(corpus_path):
+    print("Corpus file not found.")
+    sys.exit(1)
 
-# get text source
-if not sys.stdin.isatty():
-    # read from stdin (piped input)
-    text = sys.stdin.read()
-else:
-    # download the file if it doesn't exist
-    if not os.path.exists(novel_path):
-        response = requests.get(url)
-        if response.status_code == 200:
-            # save the content to a local file
-            with open(novel_path, "w", encoding="utf-8") as f:
-                f.write(response.text)
-        else:
-            print("Failed to download the file.")
-            sys.exit(1)
-    # read from file
-    with open(novel_path, 'r', encoding='utf-8') as f:
-        text = f.read()
+with open(corpus_path, "r", encoding="utf-8") as f:
+    text = f.read()
+
+
 
 def clean_and_tokenize_text(text):
     # remove underscores used for italics
