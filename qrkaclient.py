@@ -23,7 +23,7 @@ class qrkabot(irc.IRCClient):
         print(f"Joined {channel}")
 
     def privmsg(self, user, channel, msg):
-        user = user.split('!')[0]
+        u = user.split('!')[0]
 
         if channel == self.nickname:
             return  # ignore PMs for now
@@ -44,7 +44,7 @@ class qrkabot(irc.IRCClient):
         prompt = cleaned
 
         try:
-            response = generate_response(prompt)
+            response = generate_response(prompt, user=u)
             self.msg(channel, response)
         except Exception as e:
             print(f"Error generating response: {e}")

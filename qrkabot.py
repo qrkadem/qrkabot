@@ -109,7 +109,7 @@ def generate(pp_markov_model, limit=100, start=None):
     story = re.sub(r'([\'"])\s+', r'\1', story)
     return story
 
-def generate_response(prompt=None, limit=random.randint(8, 18)):
+def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     
     if prompt is None:
         return generate(pp_markov_model, limit=limit)
@@ -119,6 +119,10 @@ def generate_response(prompt=None, limit=random.randint(8, 18)):
         return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
     elif prompt_lower == "help":
         return "I'm actually stupid, so I can't help you."
+    elif prompt_lower == "i hate you":
+        return "That's okay, I hate myself too."
+    elif prompt_lower == "bannings":
+        return f"{user}"
 
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
