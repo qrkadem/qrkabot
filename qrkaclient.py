@@ -1,3 +1,4 @@
+import re
 import sys
 from twisted.internet import protocol, reactor
 from twisted.words.protocols import irc
@@ -25,13 +26,24 @@ class qrkabot(irc.IRCClient):
         else:
             # mention check
             if self.nickname.lower() in msg.lower():
-                prompt = msg
-                try:
-                    response = generate_response(prompt)
-                    self.msg(channel, response)
-                except Exception as e:
-                    print(f"Error generating response: {e}")
-                    self.msg(channel, "Sorry, I couldn't generate a response.")
+                # remove user mention like <bro>
+                cleaned = re.sub(r"<[^>]+>\s*", "", msg, count=1)
+
+                cleaned = re.sub(
+                    re.escape(self.nickname),
+                    "",
+                    cleaned,
+                    count=1,
+                    flags=re.IGNORECASE
+                ).strip()
+            prompt = cleaned
+
+            try:
+                response = generate_response(prompt)
+                self.msg(channel, response)
+            except Exception as e:
+                print(f"Error generating response: {e}")
+                self.msg(channel, "Sorry, I couldn't generate a response.")
 
 class qrkabotFactory(protocol.ClientFactory):
     protocol = qrkabot
