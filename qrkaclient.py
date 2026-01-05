@@ -8,6 +8,10 @@ from qrkabot import generate_response
 class qrkabot(irc.IRCClient):
     nickname = "qrkabot"
 
+    def lineReceived(self, line):
+        print(line.decode('utf-8', errors='ignore'))
+        super().lineReceived(line)
+
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
         print("Connected ✓")
