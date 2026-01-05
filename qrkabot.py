@@ -31,7 +31,12 @@ def clean_and_tokenize_text(text):
     return tokens
 
 # clean and tokenize text
-cleaned_text = clean_and_tokenize_text(text)
+cleaned_text = []
+for line in text.splitlines():
+    tokens = clean_and_tokenize_text(line.strip())
+    tokens.append("\n")  # mark end of message
+    cleaned_text.extend(tokens)
+
 print("Number of tokens =", len(cleaned_text))
 
 def make_markov_model(cleaned_text, n_gram=2):
@@ -90,9 +95,14 @@ def generate(pp_markov_model, limit=100, start=None):
                                     list(pp_markov_model[curr_state].values()))
 
         curr_state = next_state[0]
+
+        # stop if end-of-message token predicted
+        if "\n" in curr_state:
+            break
+
         story_tokens.extend(curr_state)
         n += 1
-    
+    story_tokens = [tok for tok in story_tokens if tok != "\n"]
     story = detokenizer.detokenize(story_tokens)
     story = re.sub(r"\s+([.,!?;:])", r"\1", story)
     story = re.sub(r'\s+([\'"])', r'\1', story)
@@ -101,10 +111,24 @@ def generate(pp_markov_model, limit=100, start=None):
 
 def generate_response(prompt=None, limit=random.randint(8, 18)):
     
+    if prompt is None:
+        return generate(pp_markov_model, limit=limit)
+
     prompt_lower = prompt.lower().strip()
     if prompt_lower == "who are you":
         return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
     elif prompt_lower == "help":
         return "I'm actually stupid, so I can't help you."
+
+    # convert prompt to tokens
+    tokens = clean_and_tokenize_text(prompt)
     
-    return generate(pp_markov_model, limit=limit, start=prompt)
+    # take first n_gram tokens as starting state
+    n_gram = 2  # must match your Markov model
+    if len(tokens) >= n_gram:
+        start = tuple(tokens[:n_gram])
+    else:
+        # pad or pick random if too short
+        start = None
+
+    return generate(pp_markov_model, limit=limit, start=start)
