@@ -134,6 +134,8 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
         return "STOP ABUSING ME\nSTOP ABUSING ME"
     elif prompt_lower == "rust":
         return "rust sucks"
+    elif "mimic" in prompt_lower:
+        return "no"
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
     
