@@ -30,18 +30,17 @@ class qrkabot(irc.IRCClient):
 
         if self.nickname.lower() not in msg.lower():
             return
-        cleaned = re.sub(r"<[^>]+>\s*", "", msg, count=1)
+        cleaned = re.sub(r"^\[[^\]]+\]\s*", "", msg)
+
+        # remove first user mention like <username>
+        cleaned = re.sub(r"<[^>]+>\s*", "", cleaned, count=1)
 
         # remove first occurrence of bot nickname
-        cleaned = re.sub(
-            re.escape(self.nickname),
-            "",
-            cleaned,
-            count=1,
-            flags=re.IGNORECASE
-        ).strip()
+        cleaned = re.sub(re.escape(self.nickname), "", cleaned, count=1, flags=re.IGNORECASE)
 
-        prompt = cleaned
+        # strip leading/trailing whitespace
+        prompt = cleaned.strip()
+
 
         try:
             response = generate_response(prompt, user=u)
