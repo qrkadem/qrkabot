@@ -122,8 +122,10 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     elif prompt_lower == "i hate you":
         return "that's okay, I hate myself too."
     elif prompt_lower == "bannings":
-        banned = ["Merth", "KermM", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x"]
+        banned = ["Merth", "KermM", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x", "qrkabot", "sumdebot", "nikkybot"]
         return "RANDOM MONTHLY BANNINGS\n" + random.choice(banned) + ": You lose"
+    elif prompt_lower == "~botabuse" or "botabuse" or "botabuse":
+        return "STOP ABUSING THE ME\nSTOP ABUSING ME"
 
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
