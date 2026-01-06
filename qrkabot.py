@@ -115,7 +115,13 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
         return generate(pp_markov_model, limit=limit)
 
     prompt_lower = prompt.lower().strip()
-    if prompt_lower == "who are you":
+
+    m = re.match(r"(.+?)\s+more like$", prompt, re.IGNORECASE)
+    if m:
+        base = m.group(1).strip()
+        generated = generate(pp_markov_model, limit=limit, start=base)
+        return f"{base}\nmore like\n{generated}"
+    elif prompt_lower == "who are you":
         return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
     elif prompt_lower == "help":
         return "I'm actually stupid, so I can't help you."
@@ -124,7 +130,7 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     elif prompt_lower == "bannings":
         banned = ["Merth", "KermM", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x", "qrkabot", "sumdebot", "nikkybot"]
         return "RANDOM MONTHLY BANNINGS\n" + random.choice(banned) + ": You lose"
-    elif prompt_lower == "~botabuse" or prompt_lower == "botabuse" or prompt_lower == "bot abuse":
+    elif prompt_lower in ("~botabuse", "botabuse", "bot abuse"):
         return "STOP ABUSING ME\nSTOP ABUSING ME"
     elif prompt_lower == "rust":
         return "rust sucks"
