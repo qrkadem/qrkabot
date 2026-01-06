@@ -24,30 +24,35 @@ class qrkabot(irc.IRCClient):
 
     def privmsg(self, user, channel, msg):
         u = user.split('!')[0]
+        is_pm = (channel == self.nickname)
 
-        if channel == self.nickname:
-            return  # ignore PMs for now
-
-        if self.nickname.lower() not in msg.lower():
+        # only require mentions in channels
+        if not is_pm and self.nickname.lower() not in msg.lower():
             return
-        cleaned = re.sub(r"^\[[^\]]+\]\s*", "", msg)
 
-        # remove first user mention like <username>
-        cleaned = re.sub(r"<[^>]+>\s*", "", cleaned, count=1)
+        prompt = msg
 
-        # remove first occurrence of bot nickname
-        cleaned = re.sub(re.escape(self.nickname), "", cleaned, count=1, flags=re.IGNORECASE)
+        if not is_pm:
+            # existing cleanup, channel only
+            prompt = re.sub(r"^\[[^\]]+\]\s*", "", prompt)
+            prompt = re.sub(r"<[^>]+>\s*", "", prompt, count=1)
+            prompt = re.sub(
+                re.escape(self.nickname),
+                "",
+                prompt,
+                count=1,
+                flags=re.IGNORECASE
+            )
+            prompt = prompt.strip()
 
-        # strip leading/trailing whitespace
-        prompt = cleaned.strip()
-
+        reply_target = u if is_pm else channel
 
         try:
             response = generate_response(prompt, user=u)
-            self.msg(channel, response)
+            self.msg(reply_target, response)
         except Exception as e:
             print(f"Error generating response: {e}")
-            self.msg(channel, "Sorry, I couldn't generate a response.")
+            self.msg(reply_target, "Sorry, I couldn't generate a response.")
 
 class qrkabotFactory(protocol.ClientFactory):
     protocol = qrkabot
