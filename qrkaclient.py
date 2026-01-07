@@ -1,4 +1,4 @@
-from random import random
+import random
 import re
 import sys
 from twisted.internet import protocol, reactor
@@ -58,8 +58,16 @@ class qrkabot(irc.IRCClient):
             self.sendwithlag(channel, response)
         except Exception as e:
             print(f"Error generating response: {e}")
-            self.msg(reply_target, "Sorry, I couldn't generate a response.")
-
+            self.msg(
+                reply_target,
+                random.choice([
+                    "Sorry, I couldn't generate a response.",
+                    "AAAA! Tell qrkadem to fix his code ",
+                    "seg fault",
+                    "QRKADEM FIX YOUR CODE",
+                    "qrkadem: you idiot",
+                ])
+            )
 class qrkabotFactory(protocol.ClientFactory):
     protocol = qrkabot
 
