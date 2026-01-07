@@ -9,6 +9,14 @@ from qrkabot import generate_response
 class qrkabot(irc.IRCClient):
     nickname = "qrkabot"
 
+
+    def sendLine(self, line):
+        try:
+            print(f">>> {line.decode('utf-8', errors='ignore')}")
+        except Exception:
+            print(f">>> {line!r}")
+        super().sendLine(line)
+
     def lineReceived(self, line):
         print(line.decode('utf-8', errors='ignore'))
         super().lineReceived(line)
