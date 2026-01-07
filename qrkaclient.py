@@ -56,7 +56,7 @@ class qrkabot(irc.IRCClient):
 
         try:
             response = generate_response(prompt, user=u)
-            self.sendwithlag(channel, response)
+            self.sendwithlag(reply_target, response)
         except Exception as e:
             print(f"Error generating response: {e}")
             self.msg(
