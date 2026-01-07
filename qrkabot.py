@@ -133,14 +133,14 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     elif prompt_lower in ("~botabuse", "botabuse", "bot abuse"):
         return "STOP ABUSING ME\nSTOP ABUSING ME"
     elif prompt_lower == "rust":
-        return "rust sucks"
+        return "but it's memory safe! guys, it's memory safe! you can trust it! its memory safe!"
     elif "mimic" in prompt_lower:
         return "no"
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
     
     # take first n_gram tokens as starting state
-    n_gram = 2  # must match your Markov model
+    n_gram = 2 
     if len(tokens) >= n_gram:
         start = tuple(tokens[:n_gram])
     else:
