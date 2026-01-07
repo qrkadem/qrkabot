@@ -1,3 +1,4 @@
+from random import random
 import re
 import sys
 from twisted.internet import protocol, reactor
@@ -11,6 +12,11 @@ class qrkabot(irc.IRCClient):
     def lineReceived(self, line):
         print(line.decode('utf-8', errors='ignore'))
         super().lineReceived(line)
+
+    def sendwithlag(self, channel, text):
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            reactor.callLater(random.uniform(0.3, 0.6), self.msg, channel, line)
 
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
@@ -49,7 +55,7 @@ class qrkabot(irc.IRCClient):
 
         try:
             response = generate_response(prompt, user=u)
-            self.msg(reply_target, response)
+            self.sendwithlag(channel, response)
         except Exception as e:
             print(f"Error generating response: {e}")
             self.msg(reply_target, "Sorry, I couldn't generate a response.")
