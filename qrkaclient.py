@@ -13,10 +13,11 @@ class qrkabot(irc.IRCClient):
         print(line.decode('utf-8', errors='ignore'))
         super().lineReceived(line)
 
-    def sendwithlag(self, channel, text):
-        lines = text.split("\n")
-        for i, line in enumerate(lines):
-            reactor.callLater(random.uniform(0.8, 1.6), self.msg, channel, line)
+    def send_with_lag(self, channel, text):
+        delay = 0.0
+        for line in text.split("\n"):
+            delay += random.uniform(0.6, 1.2)
+            reactor.callLater(delay, self.msg, channel, line)
 
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
