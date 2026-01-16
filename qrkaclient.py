@@ -32,7 +32,8 @@ class qrkabot(irc.IRCClient):
         print("Connected ✓")
 
     def signedOn(self):
-        self.join(self.factory.channel)
+        for channel in self.factory.channels:
+            self.join(channel)
 
     def joined(self, channel):
         print(f"Joined {channel}")
@@ -80,8 +81,8 @@ class qrkabot(irc.IRCClient):
 class qrkabotFactory(protocol.ClientFactory):
     protocol = qrkabot
 
-    def __init__(self, channel):
-        self.channel = channel
+    def __init__(self, channels):
+        self.channels = channels
 
     def clientConnectionLost(self, connector, reason):
         print("Connection lost")
@@ -93,13 +94,13 @@ class qrkabotFactory(protocol.ClientFactory):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python qrkaclient.py <channel>")
+        print("Usage: python qrkaclient.py <channel1> <channel2> ...")
         sys.exit(1)
 
     server = "irc.choopa.net"
     port = 6667
-    channel = sys.argv[1]
+    channels = sys.argv[1:]
 
-    factory = qrkabotFactory(channel)
+    factory = qrkabotFactory(channels)
     reactor.connectTCP(server, port, factory)
     reactor.run()
