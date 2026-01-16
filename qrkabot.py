@@ -1,6 +1,4 @@
 #!/home/qrkadem/work/code/qrkabot/.venv/bin/python3
-import numpy as np
-import pandas as pd
 import os
 import re
 import string
@@ -8,10 +6,13 @@ from nltk.tokenize import word_tokenize
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import stopwords
 import random
-import requests
 import sys
+from collections import deque
+from difflib import SequenceMatcher
 
 detokenizer = TreebankWordDetokenizer()
+
+RECENT_RESPONSES = deque(maxlen=7)
 
 RULE_STARTING_VERBS = [
     "don't", "always", "never", "take", "get", "use", "walk", "build", "keep",
@@ -124,6 +125,36 @@ def generate(pp_markov_model, limit=100, start=None):
     story = re.sub(r'([\'"])\s+', r'\1', story)
     return story
 
+def _normalize_response(text):
+    text = text.lower()
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+def _is_similar_response(candidate, recent_responses, threshold=0.8):
+    candidate_norm = _normalize_response(candidate)
+    if not candidate_norm:
+        return False
+    for prev in recent_responses:
+        prev_norm = _normalize_response(prev)
+        if not prev_norm:
+            continue
+        ratio = SequenceMatcher(None, candidate_norm, prev_norm).ratio()
+        if ratio >= threshold:
+            return True
+    return False
+
+def _memres(response):
+    if response:
+        RECENT_RESPONSES.append(response)
+
+def _generate_unique_response(generator_fn, attempts=8):
+    candidate = ""
+    for _ in range(attempts):
+        candidate = generator_fn()
+        if not _is_similar_response(candidate, RECENT_RESPONSES):
+            return candidate
+    return candidate
+
 def _force_starting_verb(text, verb):
     tokens = word_tokenize(text) if text else []
     if not tokens:
@@ -151,32 +182,56 @@ def generate_rules(count=3, limit_range=(8, 16)):
 def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     
     if prompt is None:
-        return generate(pp_markov_model, limit=limit)
+        response = _generate_unique_response(
+            lambda: generate(pp_markov_model, limit=limit)
+        )
+        _memres(response)
+        return response
 
     prompt_lower = prompt.lower().strip()
 
     m = re.match(r"(.+?)\s+more like$", prompt, re.IGNORECASE)
     if m:
         base = m.group(1).strip()
-        generated = generate(pp_markov_model, limit=limit, start=base)
-        return f"{base}\nmore like\n{generated}"
+        generated = _generate_unique_response(
+            lambda: generate(pp_markov_model, limit=limit, start=base)
+        )
+        response = f"{base}\nmore like\n{generated}"
+        _memres(response)
+        return response
     elif prompt_lower == "who are you":
-        return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
+        response = "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
+        _memres(response)
+        return response
     elif prompt_lower == "help":
-        return "I'm actually stupid, so I can't help you."
+        response = "I'm actually stupid, so I can't help you."
+        _memres(response)
+        return response
     elif prompt_lower == "i hate you":
-        return "that's okay, I hate myself too."
+        response = "that's okay, I hate myself too."
+        _memres(response)
+        return response
     elif prompt_lower == "bannings":
         banned = ["Merth", "KermM", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x", "qrkabot", "sumdebot", "nikkybot"]
-        return "RANDOM MONTHLY BANNINGS\n" + random.choice(banned) + ": You lose"
+        response = "RANDOM MONTHLY BANNINGS\n" + random.choice(banned) + ": You lose"
+        _memres(response)
+        return response
     elif prompt_lower in ("~botabuse", "botabuse", "bot abuse"):
-        return "STOP ABUSING ME\nSTOP ABUSING ME"
+        response = "STOP ABUSING ME\nSTOP ABUSING ME"
+        _memres(response)
+        return response
     elif prompt_lower == "rust":
-        return "but it's memory safe! guys, it's memory safe! you can trust it! its memory safe!"
+        response = "but it's memory safe! guys, it's memory safe! you can trust it! its memory safe!"
+        _memres(response)
+        return response
     elif "mimic" in prompt_lower:
-        return "no"
+        response = "no"
+        _memres(response)
+        return response
     elif re.search(r"\brules\b", prompt_lower):
-        return generate_rules()
+        response = _generate_unique_response(generate_rules)
+        _memres(response)
+        return response
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
     
@@ -188,4 +243,8 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
         # pad or pick random if too short
         start = None
 
-    return generate(pp_markov_model, limit=limit, start=start)
+    response = _generate_unique_response(
+        lambda: generate(pp_markov_model, limit=limit, start=start)
+    )
+    _memres(response)
+    return response
