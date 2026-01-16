@@ -174,7 +174,9 @@ def generate_rules(count=3, limit_range=(8, 16)):
         generated = generate(pp_markov_model, limit=limit)
         rule = _force_starting_verb(generated, verb)
         rules.append(rule)
-    lines = ["Forum rules:"]
+    headers = ["Forum rules:", "today's rules:", "rules:", "Rules:", "THE RULES:", 
+               "Current rules:", "Official rules:", "New rules:", "rules of the day:"]
+    lines = [random.choice(headers)]
     for i, rule in enumerate(rules, start=1):
         lines.append(f"{i}. {rule}")
     return "\n".join(lines)
