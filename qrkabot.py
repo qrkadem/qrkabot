@@ -13,6 +13,21 @@ import sys
 
 detokenizer = TreebankWordDetokenizer()
 
+RULE_STARTING_VERBS = [
+    "don't", "always", "never", "take", "get", "use", "walk", "build", "keep",
+    "avoid", "remember", "forget", "respect", "ban", "post", "read", "write",
+    "share", "stay", "pay", "check", "bring", "leave", "listen", "watch",
+    "play", "stop", "start", "report", "ping", "join", "wait", "ask",
+    "tell", "think", "sleep", "ship", "fix", "test", "be", "make",
+    "learn", "try", "help", "mind", "hold", "move", "clean", "sort",
+    "wear", "drink", "eat", "call", "reply", "meet", "mute", "vote",
+    "carry", "save", "backup", "update", "rollback", "commit", "push", "pull",
+    "review", "deploy", "monitor", "log", "follow", "trust", "verify", "report",
+    "practice", "sketch", "organize", "label", "archive", "email", "document",
+    "refactor", "benchmark", "profile", "compress", "encrypt", "scan", "lock",
+    "unlock", "enable", "disable", "charge", "reboot", "sync"
+]
+
 
 
 corpus_path = "./corpora/corpus.txt"
@@ -109,6 +124,30 @@ def generate(pp_markov_model, limit=100, start=None):
     story = re.sub(r'([\'"])\s+', r'\1', story)
     return story
 
+def _force_starting_verb(text, verb):
+    tokens = word_tokenize(text) if text else []
+    if not tokens:
+        return verb
+    tokens[0] = verb
+    forced = detokenizer.detokenize(tokens)
+    forced = re.sub(r"\s+([.,!?;:])", r"\1", forced)
+    forced = re.sub(r"\s+([\'\"])", r"\1", forced)
+    forced = re.sub(r"([\'\"])\s+", r"\1", forced)
+    return forced
+
+def generate_rules(count=3, limit_range=(8, 16)):
+    rules = []
+    for _ in range(count):
+        verb = random.choice(RULE_STARTING_VERBS)
+        limit = random.randint(*limit_range)
+        generated = generate(pp_markov_model, limit=limit)
+        rule = _force_starting_verb(generated, verb)
+        rules.append(rule)
+    lines = ["Forum rules:"]
+    for i, rule in enumerate(rules, start=1):
+        lines.append(f"{i}. {rule}")
+    return "\n".join(lines)
+
 def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     
     if prompt is None:
@@ -136,6 +175,8 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
         return "but it's memory safe! guys, it's memory safe! you can trust it! its memory safe!"
     elif "mimic" in prompt_lower:
         return "no"
+    elif re.search(r"\brules\b", prompt_lower):
+        return generate_rules()
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
     
