@@ -130,7 +130,7 @@ def _normalize_response(text):
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-def _is_similar_response(candidate, recent_responses, threshold=0.8):
+def _is_similar_response(candidate, recent_responses, threshold=0.6):
     candidate_norm = _normalize_response(candidate)
     if not candidate_norm:
         return False
