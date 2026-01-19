@@ -176,6 +176,7 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
         return "no"
     elif re.search(r"\brules\b", prompt_lower):
         return generate_rules()
+    
     # convert prompt to tokens
     tokens = clean_and_tokenize_text(prompt)
     
