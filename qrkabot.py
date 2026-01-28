@@ -1,7 +1,6 @@
 #!/home/qrkadem/work/code/qrkabot/.venv/bin/python3
 import os
 import re
-import math
 from nltk.tokenize import word_tokenize
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.corpus import stopwords
