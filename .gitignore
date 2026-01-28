@@ -3,4 +3,4 @@ __pycache__/
 .vscode/
 corpora/
 .github/
-.qrkaoverride.py
+qrkaoverride.py
