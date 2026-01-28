@@ -414,27 +414,166 @@ def react_to_sentiment(sentiment_type, score):
         return random.choice(['hmm', 'oh', 'well', 'yikes', 'oof'])
     return random.choice(MOOD_RESPONSES['chill'])
 
-def _force_starting_verb(text, verb):
-    tokens = word_tokenize(text) if text else []
-    if not tokens:
-        return verb
-    tokens[0] = verb
-    forced = detokenizer.detokenize(tokens)
-    forced = re.sub(r"\s+([.,!?;:])", r"\1", forced)
-    forced = re.sub(r"\s+([\'\"])", r"\1", forced)
-    forced = re.sub(r"([\'\"])\s+", r"\1", forced)
-    return forced
+def find_verb_starting_states(model, verbs):
+    """Find all states in the model that start with one of our rule verbs."""
+    matching = {}
+    for verb in verbs:
+        verb_lower = verb.lower()
+        for state in model.keys():
+            if state[0].lower() == verb_lower:
+                if verb_lower not in matching:
+                    matching[verb_lower] = []
+                matching[verb_lower].append(state)
+    return matching
+
+# Pre-compute verb-starting states for faster rule generation
+verb_starting_states = find_verb_starting_states(pp_markov_model, RULE_STARTING_VERBS)
+
+# Rule templates for when we can't find natural verb starts
+RULE_TEMPLATES = [
+    "{verb} {object} {modifier}",
+    "{verb} the {object}",
+    "{verb} your {object}",
+    "{verb} all {object}",
+    "{verb} when {condition}",
+    "{verb} before {action}",
+    "{verb} unless {condition}",
+    "{verb} if you {action}",
+    "{verb} or else",
+    "{verb} at all times",
+    "{verb} in the channel",
+    "{verb} without warning",
+    "{verb} immediately",
+    "{verb} responsibly",
+    "{verb} with caution",
+]
+
+RULE_OBJECTS = [
+    "the mods", "your code", "the rules", "other users", "the channel",
+    "calculators", "homework", "bots", "links", "spam", "drama",
+    "off-topic discussion", "your projects", "documentation", "bugs",
+    "feature requests", "questions", "answers", "feedback", "files",
+    "screenshots", "logs", "errors", "warnings", "crashes", "updates",
+    "dependencies", "tests", "pull requests", "commits", "branches",
+    "merges", "conflicts", "deadlines", "meetings", "announcements"
+]
+
+RULE_MODIFIERS = [
+    "carefully", "quietly", "loudly", "often", "rarely", "sometimes",
+    "always", "never", "quickly", "slowly", "wisely", "foolishly",
+    "at midnight", "on Tuesdays", "during lunch", "in public",
+    "when asked", "without asking", "politely", "aggressively",
+    "with permission", "without permission", "for fun", "for science"
+]
+
+RULE_CONDITIONS = [
+    "you're bored", "it's late", "nobody's watching", "the mods are asleep",
+    "you feel like it", "you're sure", "you have time", "it's important",
+    "someone asks nicely", "there's no other choice", "the tests pass",
+    "the build succeeds", "you've had coffee", "mercury is in retrograde"
+]
+
+RULE_ACTIONS = [
+    "posting", "coding", "debugging", "sleeping", "eating", "complaining",
+    "asking questions", "reading docs", "writing tests", "reviewing code",
+    "pushing to main", "merging branches", "deploying", "celebrating"
+]
+
+def generate_smart_rule(verb):
+    """Generate a rule that makes grammatical sense starting with a verb."""
+    verb_lower = verb.lower()
+    
+    # Strategy 1: Find a natural starting state from the corpus (40% chance)
+    if verb_lower in verb_starting_states and verb_starting_states[verb_lower] and random.random() < 0.4:
+        start_state = random.choice(verb_starting_states[verb_lower])
+        generated = generate_with_temperature(
+            pp_markov_model,
+            limit=random.randint(6, 12),
+            start=start_state,
+            temperature=random.uniform(0.9, 1.1)
+        )
+        # Clean up and capitalize properly
+        if generated and len(generated) > 3:
+            return generated[0].upper() + generated[1:]
+    
+    # Strategy 2: Template-based generation with corpus elements (35% chance)
+    if random.random() < 0.55:
+        template = random.choice(RULE_TEMPLATES)
+        
+        # Try to get a corpus-based continuation for the object
+        corpus_continuation = ""
+        if verb_lower in word_positions and word_positions[verb_lower]:
+            pos = random.choice(word_positions[verb_lower])
+            if pos + 5 < len(cleaned_text):
+                snippet = cleaned_text[pos+1:pos+random.randint(3, 6)]
+                snippet = [t for t in snippet if t != "\n"]
+                if snippet:
+                    corpus_continuation = detokenizer.detokenize(snippet)
+        
+        # Fill template
+        rule = template.format(
+            verb=verb.capitalize() if verb[0].islower() else verb,
+            object=corpus_continuation if corpus_continuation and random.random() < 0.5 else random.choice(RULE_OBJECTS),
+            modifier=random.choice(RULE_MODIFIERS),
+            condition=random.choice(RULE_CONDITIONS),
+            action=random.choice(RULE_ACTIONS)
+        )
+        return rule
+    
+    # Strategy 3: Pure corpus generation with the verb as seed
+    # Find any state containing the verb and generate from there
+    for state in pp_markov_model.keys():
+        if verb_lower in [s.lower() for s in state]:
+            generated = generate_with_temperature(
+                pp_markov_model,
+                limit=random.randint(5, 10),
+                start=state,
+                temperature=1.0
+            )
+            if generated:
+                # Restructure to start with our verb
+                return f"{verb.capitalize()} {generated.lower()}"
+    
+    # Fallback: Simple template
+    return f"{verb.capitalize()} {random.choice(RULE_OBJECTS)} {random.choice(RULE_MODIFIERS)}"
 
 def generate_rules(count=3, limit_range=(8, 16)):
+    """Generate amusing, grammatically sensible rules."""
     rules = []
+    used_verbs = set()
+    
     for _ in range(count):
-        verb = random.choice(RULE_STARTING_VERBS)
-        limit = random.randint(*limit_range)
-        generated = generate(pp_markov_model, limit=limit)
-        rule = _force_starting_verb(generated, verb)
+        # Pick a verb we haven't used yet for variety
+        available_verbs = [v for v in RULE_STARTING_VERBS if v.lower() not in used_verbs]
+        if not available_verbs:
+            available_verbs = RULE_STARTING_VERBS
+        
+        verb = random.choice(available_verbs)
+        used_verbs.add(verb.lower())
+        
+        rule = generate_smart_rule(verb)
+        
+        # Clean up punctuation
+        rule = re.sub(r"\s+([.,!?;:])", r"\1", rule)
+        rule = re.sub(r'\s+([\'"])', r'\1', rule)
+        rule = re.sub(r'([\'"])\s+', r'\1', rule)
+        
+        # Make sure it doesn't end awkwardly
+        if rule and rule[-1] not in '.!?':
+            # Sometimes add dramatic punctuation
+            if random.random() < 0.3:
+                rule += random.choice(['!', '.', '...'])
+            else:
+                rule += '.'
+        
         rules.append(rule)
-    headers = ["Forum rules:", "today's rules:", "rules:", "Rules:", "THE RULES:", 
-               "Current rules:", "Official rules:", "New rules:", "rules of the day:"]
+    
+    headers = [
+        "Forum rules:", "today's rules:", "rules:", "Rules:", "THE RULES:",
+        "Current rules:", "Official rules:", "New rules:", "rules of the day:",
+        "Channel commandments:", "The sacred laws:", "MANDATORY GUIDELINES:",
+        "Rules (subject to change):", "Non-negotiable rules:", "Community standards:"
+    ]
     lines = [random.choice(headers)]
     for i, rule in enumerate(rules, start=1):
         lines.append(f"{i}. {rule}")
