@@ -4,7 +4,7 @@ import sys
 from twisted.internet import protocol, reactor
 from twisted.words.protocols import irc
 # hey look! it's qrkabot!
-from qrkabotOG import generate_response
+from qrkabot import generate_response
 
 class qrkabot(irc.IRCClient):
     nickname = "qrkabot"
