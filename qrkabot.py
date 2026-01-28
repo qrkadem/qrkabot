@@ -253,15 +253,22 @@ def find_contextual_start(prompt, model, n_gram=2):
     
     return None
 
-def generate_with_temperature(model, limit=100, start=None, temperature=1.0):
-    """Generate text with temperature-adjusted randomness.
-    Higher temperature = more creative/random, lower = more predictable."""
+def generate_with_temperature(model, limit=100, start=None, temperature=1.0, repetition_penalty=1.2):
+    """Generate text with temperature-adjusted randomness and repetition penalty.
+    Higher temperature = more creative/random, lower = more predictable.
+    Repetition penalty > 1.0 discourages repeating tokens already in the output."""
     if start is None or start not in model:
         start = random.choice(list(model.keys()))
     
     n = 0
     curr_state = start
     story_tokens = list(curr_state)
+    
+    # Track token frequencies for repetition penalty
+    token_counts = {}
+    for tok in story_tokens:
+        tok_lower = tok.lower()
+        token_counts[tok_lower] = token_counts.get(tok_lower, 0) + 1
     
     while n < limit:
         try:
@@ -278,14 +285,38 @@ def generate_with_temperature(model, limit=100, start=None, temperature=1.0):
         # Apply temperature
         if temperature != 1.0:
             probs = [p ** (1/temperature) for p in probs]
-            total = sum(probs)
+        
+        # Apply repetition penalty - reduce probability of states containing repeated tokens
+        if repetition_penalty != 1.0:
+            penalized_probs = []
+            for state, prob in zip(states, probs):
+                penalty = 1.0
+                for tok in state:
+                    tok_lower = tok.lower()
+                    if tok_lower in token_counts and len(tok_lower) > 2:  # Only penalize meaningful words
+                        # Exponential penalty based on how many times we've seen this token
+                        penalty *= repetition_penalty ** token_counts[tok_lower]
+                penalized_probs.append(prob / penalty)
+            probs = penalized_probs
+        
+        # Normalize probabilities
+        total = sum(probs)
+        if total > 0:
             probs = [p / total for p in probs]
+        else:
+            # If all probs are 0, reset to uniform
+            probs = [1.0 / len(states)] * len(states)
         
         next_state = random.choices(states, probs)[0]
         curr_state = next_state
         
         if "\n" in curr_state:
             break
+        
+        # Update token counts
+        for tok in curr_state:
+            tok_lower = tok.lower()
+            token_counts[tok_lower] = token_counts.get(tok_lower, 0) + 1
         
         story_tokens.extend(curr_state)
         n += 1
@@ -299,7 +330,7 @@ def generate_with_temperature(model, limit=100, start=None, temperature=1.0):
 
 def generate(pp_markov_model, limit=100, start=None):
     """Standard generation for backwards compatibility."""
-    return generate_with_temperature(pp_markov_model, limit, start, temperature=1.0)
+    return generate_with_temperature(pp_markov_model, limit, start, temperature=1.0, repetition_penalty=1.2)
 
 def add_personality_flair(text, mood='neutral', intensity=0.5):
     """Add natural speech patterns to make text feel more human."""
@@ -334,8 +365,36 @@ def generate_question_response(question_type, prompt, sentiment):
     if random.random() < 0.15:
         return random.choice(QUESTION_DEFLECTORS)
     
-    # Base generation with context
-    start = find_contextual_start(prompt, pp_markov_model)
+    # For yes/no questions, extract the SUBJECT of the question, not the auxiliary verb
+    # e.g., "are you a bot?" -> focus on "bot", not "are"
+    subject_words = []
+    tokens = word_tokenize(prompt.lower())
+    
+    # Skip common question starters and pronouns to find meaningful words
+    skip_words = {'are', 'is', 'do', 'does', 'did', 'can', 'could', 'would', 'will', 
+                  'should', 'have', 'has', 'had', 'was', 'were', 'you', 'i', 'we', 
+                  'they', 'he', 'she', 'it', 'a', 'an', 'the', 'this', 'that', '?'}
+    subject_words = [w for w in tokens if w not in skip_words and len(w) > 2]
+    
+    # If no meaningful subject words (like just "are you"), give simple answers
+    if not subject_words and question_type == 'yes_no_question':
+        simple_answers = [
+            'yeah', 'nah', 'probably', 'maybe', 'idk', 'depends', 'sure',
+            'not really', 'kinda', 'i guess', 'sometimes', 'usually',
+            'absolutely', 'definitely not', 'of course', 'hard to say',
+            'who knows', 'possibly', 'unlikely', 'most likely', 'doubt it',
+            'am I?', "that's the question isn't it", 'what do you think?'
+        ]
+        return random.choice(simple_answers)
+    
+    # Try to find a contextual start based on subject words, not question words
+    start = None
+    if subject_words:
+        # Create a fake prompt with just the meaningful words for context finding
+        meaningful_prompt = ' '.join(subject_words)
+        start = find_contextual_start(meaningful_prompt, pp_markov_model)
+    
+    # If no good start found, use random start (better than starting from "are")
     base_response = generate_with_temperature(
         pp_markov_model, 
         limit=random.randint(6, 14),
@@ -345,15 +404,17 @@ def generate_question_response(question_type, prompt, sentiment):
     
     # Add question-type specific framing
     if question_type == 'yes_no_question':
-        if random.random() < 0.6:
-            # Give a direct-ish answer then elaborate
+        # Higher chance to just give a simple answer for yes/no
+        if random.random() < 0.7:
             answers = ['yeah', 'nah', 'probably', 'maybe', 'idk', 'depends', 
                       'sure', 'not really', 'kinda', 'i guess', 'honestly no',
-                      'honestly yeah', 'sometimes', 'usually', 'rarely']
+                      'honestly yeah', 'sometimes', 'usually', 'rarely',
+                      'absolutely', 'definitely not', 'of course', 'hard to say']
             answer = random.choice(answers)
-            if random.random() < 0.5:
+            # Sometimes elaborate, but less often
+            if random.random() < 0.35 and base_response and 'are' not in base_response.lower()[:10]:
                 return f"{answer}, {base_response.lower()}"
-            return f"{answer}"
+            return answer
     
     elif question_type == 'why_question':
         starters = ['because', 'idk', "honestly", "probably because", 
