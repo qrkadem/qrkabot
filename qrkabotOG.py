@@ -165,7 +165,7 @@ def generate_response(prompt=None, limit=random.randint(8, 18), user=None):
     elif prompt_lower == "i hate you":
         return "that's okay, I hate myself too."
     elif prompt_lower == "bannings":
-        banned = ["Merth", "KermM", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x", "qrkabot", "sumdebot", "nikkybot"]
+        banned = ["Merth", "KermMartian", "TIny_Hacker", "MateoConLechuga", "Sumde", "Adriweb", "DeltaX", user, "qrkadem", "tev", "TIFreak8x", "qrkabot", "sumdebot", "nikkybot"]
         return "RANDOM MONTHLY BANNINGS\n" + random.choice(banned) + ": You lose"
     elif prompt_lower in ("~botabuse", "botabuse", "bot abuse"):
         return "STOP ABUSING ME\nSTOP ABUSING ME"
