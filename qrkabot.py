@@ -12,6 +12,51 @@ import sys
 
 detokenizer = TreebankWordDetokenizer()
 
+# ============================================================================
+# MANUAL OVERRIDE QUEUE SYSTEM
+# ============================================================================
+
+MANUAL_QUEUE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manual_queue.txt")
+
+def set_manual_override(message):
+    """Set a manual override message. Returns True if successful, False if queue is occupied."""
+    if os.path.exists(MANUAL_QUEUE_FILE):
+        with open(MANUAL_QUEUE_FILE, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            if content:
+                return False  # Queue is occupied
+    
+    with open(MANUAL_QUEUE_FILE, 'w', encoding='utf-8') as f:
+        f.write(message)
+    return True
+
+def get_manual_override():
+    """Get and clear the manual override. Returns the message or None if empty."""
+    if not os.path.exists(MANUAL_QUEUE_FILE):
+        return None
+    
+    with open(MANUAL_QUEUE_FILE, 'r', encoding='utf-8') as f:
+        message = f.read().strip()
+    
+    if message:
+        # Clear the queue
+        os.remove(MANUAL_QUEUE_FILE)
+        return message
+    
+    return None
+
+def is_queue_empty():
+    """Check if the manual queue is empty."""
+    if not os.path.exists(MANUAL_QUEUE_FILE):
+        return True
+    with open(MANUAL_QUEUE_FILE, 'r', encoding='utf-8') as f:
+        return not f.read().strip()
+
+def clear_manual_queue():
+    """Force clear the manual queue."""
+    if os.path.exists(MANUAL_QUEUE_FILE):
+        os.remove(MANUAL_QUEUE_FILE)
+
 # Initialize sentiment analyzer
 try:
     sia = SentimentIntensityAnalyzer()
@@ -646,6 +691,11 @@ def generate_rules(count=3, limit_range=(8, 16)):
 
 def generate_response(prompt=None, limit=None, user=None):
     """Generate a dynamic, human-feeling response."""
+    
+    # CHECK FOR MANUAL OVERRIDE FIRST
+    manual_message = get_manual_override()
+    if manual_message:
+        return manual_message
     
     # Dynamic limit for natural length variation
     if limit is None:
