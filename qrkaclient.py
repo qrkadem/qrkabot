@@ -97,7 +97,7 @@ if __name__ == "__main__":
         print("Usage: python qrkaclient.py <channel1> <channel2> ...")
         sys.exit(1)
 
-    server = "irc.choopa.net"
+    server = "irc.colosolutions.net"
     port = 6667
     channels = sys.argv[1:]
 
