@@ -42,8 +42,14 @@ class qrkabot(irc.IRCClient):
         u = user.split('!')[0]
         is_pm = (channel == self.nickname)
 
-        # only require mentions in channels
-        if not is_pm and self.nickname.lower() not in msg.lower():
+        # Check if we should respond
+        mentioned = self.nickname.lower() in msg.lower()
+        
+        # 1 in 300 chance to respond even without being pinged (channels only)
+        random_activation = not is_pm and not mentioned and random.randint(1, 300) == 1
+        
+        # only require mentions in channels (unless random activation)
+        if not is_pm and not mentioned and not random_activation:
             return
 
         prompt = msg
