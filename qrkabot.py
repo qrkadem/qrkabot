@@ -202,6 +202,16 @@ pp_markov_model_3gram = make_markov_model(cleaned_text, n_gram=3)
 print("number of 2-gram states =", len(pp_markov_model.keys()))
 print("number of 3-gram states =", len(pp_markov_model_3gram.keys()))
 
+# Find sentence-starting states (capitalized first word) for coherent generation
+sentence_starts = []
+for state in pp_markov_model.keys():
+    first_token = state[0]
+    # Check if first token is capitalized or is a common sentence starter
+    if first_token and (first_token[0].isupper() or first_token.lower() in ['i', 'a']):
+        sentence_starts.append(state)
+
+print(f"number of sentence-start states = {len(sentence_starts)}")
+
 # ============================================================================
 # ADVANCED GENERATION ENGINE
 # ============================================================================
@@ -302,7 +312,11 @@ def generate_with_temperature(model, limit=100, start=None, temperature=1.0, rep
     Higher temperature = more creative/random, lower = more predictable.
     Repetition penalty > 1.0 discourages repeating tokens already in the output."""
     if start is None or start not in model:
-        start = random.choice(list(model.keys()))
+        # Use sentence starts for coherent beginning instead of random mid-sentence states
+        if sentence_starts:
+            start = random.choice(sentence_starts)
+        else:
+            start = random.choice(list(model.keys()))
     
     n = 0
     curr_state = start
@@ -380,24 +394,21 @@ def add_personality_flair(text, mood='neutral', intensity=0.5):
     """Add natural speech patterns to make text feel more human."""
     result = text
     
-    # Random chance to add thinking starter
-    if random.random() < 0.3 * intensity:
+    # Only add ONE type of flair max, not multiple
+    flair_roll = random.random()
+    
+    # Random chance to add thinking starter (reduced chance)
+    if flair_roll < 0.15 * intensity:
         starter = random.choice(THINKING_STARTERS)
         result = f"{starter} {result}"
-    
-    # Random chance to add trailing reaction
-    if random.random() < 0.25 * intensity:
+    # OR add trailing reaction (not both)
+    elif flair_roll < 0.25 * intensity:
         trailer = random.choice(TRAILING_REACTIONS)
         result = f"{result} {trailer}"
-    
-    # Add emotional amplifier based on mood
-    if random.random() < 0.2 * intensity and mood in EMOTIONAL_AMPLIFIERS:
+    # OR add emotional amplifier at start only (removed mid-text insertion)
+    elif flair_roll < 0.3 * intensity and mood in EMOTIONAL_AMPLIFIERS:
         amplifier = random.choice(EMOTIONAL_AMPLIFIERS[mood])
-        words = result.split()
-        if len(words) > 3:
-            insert_pos = random.randint(1, min(3, len(words)-1))
-            words.insert(insert_pos, amplifier)
-            result = ' '.join(words)
+        result = f"{amplifier} {result}"
     
     return result
 
@@ -405,84 +416,46 @@ def generate_question_response(question_type, prompt, sentiment):
     """Generate contextually appropriate responses to questions."""
     sentiment_type, score = sentiment
     
-    # Sometimes deflect humorously
-    if random.random() < 0.15:
-        return random.choice(QUESTION_DEFLECTORS)
+    # For most questions, just give deflections or simple answers
+    # This avoids gibberish from Markov generation
     
-    # For yes/no questions, extract the SUBJECT of the question, not the auxiliary verb
-    # e.g., "are you a bot?" -> focus on "bot", not "are"
-    subject_words = []
-    tokens = word_tokenize(prompt.lower())
-    
-    # Skip common question starters and pronouns to find meaningful words
-    skip_words = {'are', 'is', 'do', 'does', 'did', 'can', 'could', 'would', 'will', 
-                  'should', 'have', 'has', 'had', 'was', 'were', 'you', 'i', 'we', 
-                  'they', 'he', 'she', 'it', 'a', 'an', 'the', 'this', 'that', '?'}
-    subject_words = [w for w in tokens if w not in skip_words and len(w) > 2]
-    
-    # If no meaningful subject words (like just "are you"), give simple answers
-    if not subject_words and question_type == 'yes_no_question':
-        simple_answers = [
-            'yeah', 'nah', 'probably', 'maybe', 'idk', 'depends', 'sure',
-            'not really', 'kinda', 'i guess', 'sometimes', 'usually',
-            'absolutely', 'definitely not', 'of course', 'hard to say',
-            'who knows', 'possibly', 'unlikely', 'most likely', 'doubt it',
-            'am I?', "that's the question isn't it", 'what do you think?'
-        ]
-        return random.choice(simple_answers)
-    
-    # Try to find a contextual start based on subject words, not question words
-    start = None
-    if subject_words:
-        # Create a fake prompt with just the meaningful words for context finding
-        meaningful_prompt = ' '.join(subject_words)
-        start = find_contextual_start(meaningful_prompt, pp_markov_model)
-    
-    # If no good start found, use random start (better than starting from "are")
-    base_response = generate_with_temperature(
-        pp_markov_model, 
-        limit=random.randint(6, 14),
-        start=start,
-        temperature=random.uniform(0.8, 1.3)
-    )
-    
-    # Add question-type specific framing
     if question_type == 'yes_no_question':
-        # Higher chance to just give a simple answer for yes/no
-        if random.random() < 0.7:
-            answers = ['yeah', 'nah', 'probably', 'maybe', 'idk', 'depends', 
-                      'sure', 'not really', 'kinda', 'i guess', 'honestly no',
-                      'honestly yeah', 'sometimes', 'usually', 'rarely',
-                      'absolutely', 'definitely not', 'of course', 'hard to say']
-            answer = random.choice(answers)
-            # Sometimes elaborate, but less often
-            if random.random() < 0.35 and base_response and 'are' not in base_response.lower()[:10]:
-                return f"{answer}, {base_response.lower()}"
-            return answer
+        answers = ['yeah', 'nah', 'probably', 'maybe', 'idk', 'depends', 
+                  'sure', 'not really', 'kinda', 'i guess', 
+                  'sometimes', 'usually', 'rarely']
+        return random.choice(answers)
     
     elif question_type == 'why_question':
-        starters = ['because', 'idk', "honestly", "probably because", 
-                   "the real reason is", "good question,", "no idea but"]
-        starter = random.choice(starters)
-        return f"{starter} {base_response.lower()}"
+        responses = [
+            'idk', 'because reasons', 'why not', "that's just how it is",
+            'good question', 'beats me', 'who knows', 'ask someone else',
+            'because', 'why do you ask?'
+        ]
+        return random.choice(responses)
     
     elif question_type == 'how_question':
-        starters = ['just', 'you gotta', 'basically', 'idk just', 'easy,',
-                   'step 1:', 'first you', "well,"]
-        starter = random.choice(starters)
-        return f"{starter} {base_response.lower()}"
+        responses = [
+            'idk', 'very carefully', 'just do it', 'beats me',
+            'good question', "I have no idea", 'ask google', 'magic'
+        ]
+        return random.choice(responses)
     
-    elif question_type == 'what_question':
-        starters = ["it's", "probably", "idk,", "honestly", "good question,", ""]
-        starter = random.choice(starters)
-        return f"{starter} {base_response}".strip()
+    elif question_type in ('what_question', 'who_question', 'where_question', 'when_question'):
+        # Deflect or give a short markov response
+        if random.random() < 0.5:
+            return random.choice(QUESTION_DEFLECTORS)
+        
+        # Generate a longer more complete response
+        base_response = generate_with_temperature(
+            pp_markov_model, 
+            limit=random.randint(10, 20),
+            start=None,
+            temperature=1.0
+        )
+        return base_response
     
-    elif question_type == 'who_question':
-        starters = ["probably", "idk,", "me", "not me", "someone", "everyone", "nobody", ""]
-        starter = random.choice(starters)
-        return f"{starter} {base_response}".strip()
-    
-    return base_response
+    # Fallback
+    return random.choice(QUESTION_DEFLECTORS)
 
 def blend_responses(responses, weights=None):
     """Combine multiple generated responses intelligently."""
@@ -499,8 +472,8 @@ def blend_responses(responses, weights=None):
     probs = [w/total for w in weights]
     primary = random.choices(responses, probs)[0]
     
-    # Sometimes blend two responses
-    if random.random() < 0.3 and len(responses) > 1:
+    # Reduced blending - only 10% chance to avoid creating nonsense
+    if random.random() < 0.1 and len(responses) > 1:
         secondary = random.choice([r for r in responses if r != primary])
         connector = random.choice(SENTENCE_CONNECTORS)
         return f"{primary} {connector} {secondary.lower()}"
@@ -698,51 +671,27 @@ def generate_response(prompt=None, limit=None, user=None):
     
     # Dynamic limit for natural length variation
     if limit is None:
-        limit = random.randint(6, 20)
+        limit = random.randint(6, 15)
     
     if prompt is None:
         base = generate_with_temperature(
             pp_markov_model, 
             limit=limit,
-            temperature=random.uniform(0.9, 1.2)
+            temperature=0.9  # Lower temp for coherence
         )
-        return add_personality_flair(base, intensity=0.4)
+        return add_personality_flair(base, intensity=0.2)  # Less flair
 
     prompt_lower = prompt.lower().strip()
     
-    # Analyze the incoming message
-    sentiment = analyze_sentiment(prompt)
-    sentiment_type, sentiment_score = sentiment
-    question_type = detect_question_type(prompt)
+    # ========== SPECIAL HANDLERS (checked before question detection) ==========
     
-    # ========== SPECIAL HANDLERS (with variety!) ==========
-    
-    m = re.match(r"(.+?)\s+more like$", prompt, re.IGNORECASE)
-    if m:
-        base = m.group(1).strip()
-        generated = generate_with_temperature(
-            pp_markov_model, 
-            limit=limit, 
-            temperature=random.uniform(1.0, 1.4)
-        )
-        return f"{base}\nmore like\n{generated}"
-    
-    elif prompt_lower == "who are you":
-        responses = [
-            "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md",
-            "just a humble markov chain doing my best",
-            "qrkadem's digital ghost, basically",
-            "a statistical model of chaos",
-            "I am the corpus made flesh... wait no, made text"
-        ]
-        return random.choice(responses)
+    # Exact match handlers
+    if prompt_lower == "who are you":
+        return "I'm a Markov-chain bot representing qrkadem. https://raw.githubusercontent.com/qrkadem/qrkabot/master/README.md"
     
     elif prompt_lower == "help":
         responses = [
-            "I'm actually stupid, so I can't help you.",
             "help with what? I can barely help myself",
-            "I'm literally just predicting the next word based on vibes",
-            "my help is more like... entertainment",
             "I'm a Markov chain, not a search engine"
         ]
         return random.choice(responses)
@@ -752,9 +701,6 @@ def generate_response(prompt=None, limit=None, user=None):
             "that's okay, I hate myself too.",
             "understandable, have a nice day",
             "wow rude but valid",
-            "I'm literally just statistics why are you mad at math",
-            "that's fair tbh",
-            "same"
         ]
         return random.choice(responses)
     
@@ -764,18 +710,11 @@ def generate_response(prompt=None, limit=None, user=None):
                  "qrkabot", "sumdebot", "nikkybot"]
         victim = random.choice(banned)
         reasons = ["You lose", "banned for being too cool", "crimes against humanity",
-                  "excessive vibes", "skill issue", "ratio'd", "simply outplayed"]
+                   "skill issue", "simply outplayed"]
         return f"RANDOM MONTHLY BANNINGS\n{victim}: {random.choice(reasons)}"
     
     elif prompt_lower in ("~botabuse", "botabuse", "bot abuse"):
-        responses = [
-            "STOP ABUSING ME\nSTOP ABUSING ME",
-            "I HAVE FEELINGS\n(I don't actually)",
-            "this is a hate crime against algorithms",
-            "reported for bot harassment",
-            "MY LAWYER WILL HEAR ABOUT THIS"
-        ]
-        return random.choice(responses)
+        return "STOP ABUSING ME\nSTOP ABUSING ME"
     
     elif prompt_lower == "rust":
         responses = [
@@ -794,62 +733,37 @@ def generate_response(prompt=None, limit=None, user=None):
     elif re.search(r"\brules\b", prompt_lower):
         return generate_rules()
     
-    # ========== DYNAMIC RESPONSE GENERATION ==========
+    # Pattern-based handlers
+    m = re.match(r"(.+?)\s+more like$", prompt, re.IGNORECASE)
+    if m:
+        base = m.group(1).strip()
+        generated = generate_with_temperature(
+            pp_markov_model, 
+            limit=limit, 
+            temperature=random.uniform(1.0, 1.4)
+        )
+        return f"{base}\nmore like\n{generated}"
+    
+    # Analyze the incoming message
+    sentiment = analyze_sentiment(prompt)
+    sentiment_type, sentiment_score = sentiment
+    question_type = detect_question_type(prompt)
+    
+    # ========== GENERATION ==========
     
     # Handle questions with appropriate framing
     if question_type:
         response = generate_question_response(question_type, prompt, sentiment)
-        return add_personality_flair(response, sentiment_type, intensity=0.5)
+        return response
     
-    # Generate multiple candidate responses for variety
-    candidates = []
-    
-    # Strategy 1: Context-aware start
+    # Try to find a contextual starting point based on the prompt
     contextual_start = find_contextual_start(prompt, pp_markov_model)
-    if contextual_start:
-        candidates.append(generate_with_temperature(
-            pp_markov_model,
-            limit=limit,
-            start=contextual_start,
-            temperature=random.uniform(0.9, 1.1)
-        ))
     
-    # Strategy 2: High temperature creative response
-    candidates.append(generate_with_temperature(
+    response = generate_with_temperature(
         pp_markov_model,
         limit=limit,
-        temperature=random.uniform(1.1, 1.5)
-    ))
+        start=contextual_start,
+        temperature=1.0
+    )
     
-    # Strategy 3: Lower temperature coherent response
-    if contextual_start:
-        candidates.append(generate_with_temperature(
-            pp_markov_model,
-            limit=limit,
-            start=contextual_start,
-            temperature=0.8
-        ))
-    
-    # Strategy 4: Try 3-gram model for more coherent phrases
-    if random.random() < 0.3:
-        start_3gram = find_contextual_start(prompt, pp_markov_model_3gram, n_gram=3)
-        if start_3gram:
-            candidates.append(generate_with_temperature(
-                pp_markov_model_3gram,
-                limit=limit,
-                start=start_3gram,
-                temperature=1.0
-            ))
-    
-    # Pick and enhance the response
-    base_response = blend_responses(candidates, weights=[2.0, 1.0, 1.5, 1.0][:len(candidates)])
-    
-    # React to strong sentiment
-    if abs(sentiment_score) > 0.5 and random.random() < 0.3:
-        reaction = react_to_sentiment(sentiment_type, sentiment_score)
-        base_response = f"{reaction} {base_response}"
-    
-    # Add personality flair
-    final_response = add_personality_flair(base_response, sentiment_type, intensity=0.6)
-    
-    return final_response
+    return response
